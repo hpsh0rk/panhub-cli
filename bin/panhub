@@ -1,0 +1,27 @@
+#!/usr/bin/env python3
+"""Thin shell wrapper so `panhub` works without `pip install`.
+
+Usage:
+  ./bin/panhub search "三体"
+  ./bin/panhub health
+  ./bin/panhub auth-check
+
+Or symlink it into your PATH:
+  ln -s "$(pwd)/bin/panhub" /usr/local/bin/panhub
+"""
+
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+# Make `src/panhub` importable when running this script directly,
+# without requiring `pip install -e .` first.
+_SRC = Path(__file__).resolve().parent.parent / "src"
+if str(_SRC) not in sys.path:
+    sys.path.insert(0, str(_SRC))
+
+from panhub.cli import _entrypoint  # noqa: E402
+
+if __name__ == "__main__":
+    _entrypoint()

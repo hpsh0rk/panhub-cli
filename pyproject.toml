@@ -1,0 +1,76 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "panhub-cli"
+version = "0.1.0"
+description = "A command-line interface for PanHub (panhub.shenzjd.com) — aggregate netdisk search, agent-friendly JSON output, no node/browser required."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+    { name = "sh0rk", email = "sh0rk@users.noreply.github.com" },
+]
+keywords = [
+    "panhub",
+    "netdisk",
+    "search",
+    "cli",
+    "agent",
+    "ai-agent",
+    "json",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Internet :: WWW/HTTP",
+    "Topic :: Utilities",
+]
+
+# Zero runtime dependencies — uses Python stdlib only (urllib, http.cookiejar,
+# argparse, json, pathlib). The CLI must run with `python3 panhub.py` on any
+# modern Python install without `pip install`.
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4",
+    "pytest-cov>=4.1",
+    "ruff>=0.4",
+]
+
+[project.scripts]
+panhub = "panhub.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/sh0rk/panhub-cli"
+Issues = "https://github.com/sh0rk/panhub-cli/issues"
+Source = "https://github.com/sh0rk/panhub-cli"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+panhub = ["py.typed"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "RUF"]
+ignore = ["E501"]  # line-length handled by formatter
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"

@@ -1,0 +1,12 @@
+"""SSE fixture with a heartbeat comment line to test comment-skipping."""
+
+event: chunk
+data: {"done":1,"total":1,"merged":{}}
+
+: heartbeat keep-alive
+
+event: chunk
+data: {"done":2,"total":1,"merged":{"quark":[{"url":"https://pan.quark.cn/s/abc","password":"","note":"with heartbeat","datetime":"2025-04-30T09:39:16+08:00"}]}}
+
+event: end
+data: {"done":1,"total":1}

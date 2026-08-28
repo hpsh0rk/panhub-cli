@@ -1,0 +1,11 @@
+event: chunk
+data: {"done":1,"total":18,"merged":{}}
+
+event: chunk
+data: {"done":2,"total":18,"merged":{"aliyun":[{"url":"https://www.aliyundrive.com/s/9c4FBnb65Cs","password":"","note":"test","datetime":"2025-09-16T11:15:52+08:00"}]}}
+
+event: chunk
+data: {"done":3,"total":18,"merged":{"baidu":[{"url":"https://pan.baidu.com/s/1-4Kr1dU_bgV54Vqd26TTSA?pwd=xhzs","password":"xhzs","note":"example","datetime":"2025-08-01T10:02:54+08:00"}]}}
+
+event: end
+data: {"done":18,"total":18}
