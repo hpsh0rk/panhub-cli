@@ -13,7 +13,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
+from pathlib import Path
 from typing import NoReturn
 
 from . import __version__
@@ -24,12 +26,13 @@ from .client import (
     health,
     search,
 )
-from .config import DEFAULT_BASE_URL
+from .config import DEFAULT_BASE_URL, DEFAULT_USER_AGENT
 from .credentials import (
     CREDENTIALS_FILE,
     Credentials,
     CredentialsError,
     load,
+    parse_cookie_string,
     save,
 )
 
@@ -155,49 +158,100 @@ def cmd_auth_check(args: argparse.Namespace) -> int:
     return _OK
 
 
-def cmd_init(args: argparse.Namespace) -> int:
-    """Interactive credential setup.
-
-    Prompts the user to paste three values, with input hidden to discourage
-    shoulder-surfing. Writes ~/.panhub/credentials.json with mode 0600.
-
-    We deliberately do NOT log the typed values; once written, they live
-    only in the credentials file.
-    """
+def _prompt_advanced() -> Credentials:
+    """Advanced (per-field) prompt. Used by `panhub init --advanced`."""
     import getpass  # noqa: PLC0415
 
-    _err("Setting up PanHub credentials.")
-    _err("Get these from your browser DevTools after logging in:")
-    _err("  - wxauth-token  (cookie value)")
-    _err("  - cf_clearance  (cookie value)")
-    _err("  - User-Agent    (navigator.userAgent in console)")
+    _err("Advanced setup: enter each value separately.")
+    _err("  - wxauth-token : cookie value")
+    _err("  - cf_clearance : cookie value")
+    _err("  - user-agent   : your browser's User-Agent (optional)")
     _err("")
 
     try:
         wxauth = getpass.getpass("wxauth-token: ").strip()
         cf = getpass.getpass("cf_clearance: ").strip()
-        ua = input("user-agent (press Enter for default Chrome 152 macOS): ").strip()
-    except (EOFError, KeyboardInterrupt):
+        ua = input(
+            "user-agent (press Enter for default Chrome 152 macOS): "
+        ).strip()
+    except (EOFError, KeyboardInterrupt) as e:
         _err("aborted")
-        return _USAGE_ERROR
+        raise CredentialsError("aborted") from e
 
     if not wxauth or not cf:
-        _err("both wxauth-token and cf_clearance are required")
-        return _USAGE_ERROR
-
-    creds = Credentials(
+        raise CredentialsError(
+            "both wxauth-token and cf_clearance are required"
+        )
+    return Credentials(
         wxauth_token=wxauth,
         cf_clearance=cf,
-        user_agent=ua or None,  # type: ignore[arg-type]
+        user_agent=ua or DEFAULT_USER_AGENT,
     )
-    if creds.user_agent is None:
-        from .config import DEFAULT_USER_AGENT  # noqa: PLC0415
 
-        creds = Credentials(
-            wxauth_token=creds.wxauth_token,
-            cf_clearance=creds.cf_clearance,
-            user_agent=DEFAULT_USER_AGENT,
-        )
+
+def _prompt_from_cookie() -> Credentials:
+    """Default (paste-the-whole-cookie-string) prompt.
+
+    Tells the user to copy `document.cookie` from DevTools Console and paste
+    it on one line. Parses out wxauth-token + cf_clearance; ignores the rest.
+    """
+    _err("Setting up PanHub credentials.")
+    _err("")
+    _err("How to get your cookies (5 steps):")
+    _err("  1. Open https://panhub.shenzjd.com and log in")
+    _err("  2. Press F12 → Console tab")
+    _err("  3. Type: document.cookie")
+    _err("  4. Press Enter — copy the ENTIRE output line")
+    _err("  5. Paste it below (input is hidden)")
+    _err("")
+    _err(
+        "  (We only need wxauth-token + cf_clearance; "
+        "everything else is ignored.)"
+    )
+    _err("")
+
+    import getpass  # noqa: PLC0415
+
+    try:
+        cookie_str = getpass.getpass("paste cookie string: ")
+    except (EOFError, KeyboardInterrupt) as e:
+        _err("aborted")
+        raise CredentialsError("aborted") from e
+
+    parsed = parse_cookie_string(cookie_str)
+    return Credentials(
+        wxauth_token=parsed["wxauth-token"],
+        cf_clearance=parsed["cf_clearance"],
+        user_agent=DEFAULT_USER_AGENT,
+    )
+
+
+def cmd_init(args: argparse.Namespace) -> int:
+    """Credential setup.
+
+    Default flow (`panhub init`): paste a single cookie string from
+    `document.cookie`. Easier than separating wxauth-token / cf_clearance.
+
+    Advanced flow (`panhub init --advanced`): enter each value separately.
+
+    Scripted flow (`panhub init --cookie-file <path>` or `--no-prompt`):
+    read from a file or stdin, no interactive prompts. For cron / agents.
+    """
+    creds: Credentials
+
+    try:
+        if args.advanced:
+            creds = _prompt_advanced()
+        elif args.cookie_file is not None or args.no_prompt or not sys.stdin.isatty():
+            # Non-interactive: read cookie string from file, stdin, or env.
+            creds = _load_cookie_non_interactive(
+                cookie_file=args.cookie_file, no_prompt=args.no_prompt
+            )
+        else:
+            creds = _prompt_from_cookie()
+    except CredentialsError as e:
+        _err(str(e))
+        return _AUTH_ERROR if "aborted" not in str(e) else _USAGE_ERROR
 
     try:
         save(creds)
@@ -205,9 +259,67 @@ def cmd_init(args: argparse.Namespace) -> int:
         _err(str(e))
         return _AUTH_ERROR
 
+    summary = creds.safe_summary()
     _err(f"wrote {CREDENTIALS_FILE} (mode 0600)")
+    _err(
+        f"  wxauth_token = {summary['wxauth_token']}\n"
+        f"  cf_clearance = {summary['cf_clearance']}\n"
+        f"  user_agent   = {creds.user_agent}"
+    )
     _err("Run `panhub auth-check` to verify.")
     return _OK
+
+
+def _load_cookie_non_interactive(
+    *, cookie_file: str | None, no_prompt: bool
+) -> Credentials:
+    """Resolve a cookie string from --cookie-file, $PANHUB_COOKIE, or stdin.
+
+    Precedence:
+      1. `--cookie-file <path>` argument
+      2. $PANHUB_COOKIE environment variable
+      3. stdin (read all, strip whitespace)
+
+    `--no-prompt` is accepted for clarity; it has no extra effect since
+    non-TTY stdin is auto-detected.
+    """
+    cookie_str: str | None = None
+    source: str = ""
+
+    if cookie_file:
+        p = Path(cookie_file)
+        if not p.exists():
+            raise CredentialsError(f"--cookie-file not found: {p}")
+        cookie_str = p.read_text(encoding="utf-8")
+        source = f"file:{p}"
+
+    if cookie_str is None:
+        env_val = os.environ.get("PANHUB_COOKIE", "").strip()
+        if env_val:
+            cookie_str = env_val
+            source = "env:PANHUB_COOKIE"
+
+    if cookie_str is None and no_prompt:
+        raise CredentialsError(
+            "--no-prompt needs --cookie-file or $PANHUB_COOKIE"
+        )
+
+    if cookie_str is None:
+        # Read from stdin
+        cookie_str = sys.stdin.read()
+
+    cookie_str = cookie_str.strip()
+    if not cookie_str:
+        raise CredentialsError("no cookie string provided (empty input)")
+
+    parsed = parse_cookie_string(cookie_str)
+    if source:
+        _err(f"loaded cookie from {source}")
+    return Credentials(
+        wxauth_token=parsed["wxauth-token"],
+        cf_clearance=parsed["cf_clearance"],
+        user_agent=DEFAULT_USER_AGENT,
+    )
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -262,7 +374,36 @@ def build_parser() -> argparse.ArgumentParser:
 
     # init
     sp_init = sub.add_parser(
-        "init", help="Interactively set up ~/.panhub/credentials.json."
+        "init",
+        help=(
+            "Set up ~/.panhub/credentials.json. Default: paste a single "
+            "cookie string from browser DevTools."
+        ),
+    )
+    sp_init.add_argument(
+        "--advanced",
+        action="store_true",
+        help=(
+            "Enter wxauth-token / cf_clearance / user-agent separately "
+            "instead of pasting the whole cookie string."
+        ),
+    )
+    sp_init.add_argument(
+        "--cookie-file",
+        metavar="PATH",
+        default=None,
+        help=(
+            "Read cookie string from this file (for scripts / agents). "
+            "Takes precedence over $PANHUB_COOKIE and stdin."
+        ),
+    )
+    sp_init.add_argument(
+        "--no-prompt",
+        action="store_true",
+        help=(
+            "Refuse to prompt interactively. Use with --cookie-file or "
+            "$PANHUB_COOKIE."
+        ),
     )
     sp_init.set_defaults(func=cmd_init)
 

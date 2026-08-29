@@ -37,26 +37,48 @@ panhub search "纪录片 中东战争"
 
 > ⚠️ **重要：wxauth-token 和 cf_clearance 是真凭据**，泄漏等同于你的 PanHub 账号被他人长期使用。**绝不**在 issue / 聊天 / 公开仓库 / 任何会被日志记录的地方贴出来。
 
-`panhub` 不会自动获取凭据 — 你需要从已登录 PanHub 的浏览器手动复制 2 个 cookie：
+### 推荐：粘一条完整 cookie（最简单）
 
-### 步骤
+`panhub init` 默认走这条路 — 你只需要**一行** `document.cookie`，不用自己拆字段：
 
 1. 打开 https://panhub.shenzjd.com 并**完成登录**（首次：扫描页面上的公众号二维码并关注）
-2. 按 `F12` 打开 DevTools → `Application` 标签 → `Cookies` → `https://panhub.shenzjd.com`
-3. 找到这两个值并复制：
-   - **`wxauth-token`**（值是 `openid.timestamp.hmac_sig` 格式）
-   - **`cf_clearance`**（Cloudflare 颁发的"已通过验证"凭证）
-4. 同时复制你的浏览器 **`User-Agent`**（DevTools → `Console` → 输入 `navigator.userAgent`）
+2. 按 `F12` 打开 DevTools → **Console** 标签
+3. 输入 `document.cookie` 并回车
+4. 复制**整行输出**（形如 `wxauth-token=...; cf_clearance=...; 其他=...`）
+5. 运行 `panhub init`，提示时粘贴进去（输入隐藏）
 
-### 初始化
+CLI 自己解析出需要的 `wxauth-token` + `cf_clearance`，**其余 cookie 自动忽略**。
 
 ```bash
 panhub init
-# 交互提示你粘三个值：wxauth-token / cf_clearance / user-agent
-# 写入 ~/.panhub/credentials.json (权限 600)
+# → 提示 "paste cookie string:"
+# → 粘贴 → 回车 → 写入 ~/.panhub/credentials.json (mode 600)
+# → panhub auth-check 验证
 ```
 
-或者手动创建 `~/.panhub/credentials.json`：
+### 脚本 / agent 用法（无交互）
+
+```bash
+# 方式 1：cookie 文件
+echo "wxauth-token=...; cf_clearance=..." > /tmp/panhub.cookie
+panhub init --cookie-file /tmp/panhub.cookie --no-prompt
+rm /tmp/panhub.cookie
+
+# 方式 2：环境变量（cron 友好）
+export PANHUB_COOKIE='wxauth-token=...; cf_clearance=...'
+panhub init --no-prompt
+```
+
+### 高级：分开填字段（默认 UA 不适合你时才用）
+
+如果你的 `cf_clearance` 来自一个 UA 跟默认 Chrome 152 / macOS 不同的浏览器：
+
+```bash
+panhub init --advanced
+# 依次输入 wxauth-token / cf_clearance / user-agent
+```
+
+或者手动创建 `~/.panhub/credentials.json`（然后 `chmod 600`）：
 
 ```json
 {
@@ -66,7 +88,7 @@ panhub init
 }
 ```
 
-然后 `chmod 600 ~/.panhub/credentials.json`。
+> **为什么 UA 默认是固定的？** Cloudflare 把 `cf_clearance` 绑定到颁发时的浏览器指纹（UA + IP + TLS）。**随机切换 UA 只会触发风控** — UA 必须跟拿 `cf_clearance` 的那个浏览器一致。默认值覆盖最常见的 Chrome/macOS 场景；不一致时才需要 override。
 
 ### 凭据寿命
 

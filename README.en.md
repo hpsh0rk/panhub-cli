@@ -40,23 +40,50 @@ panhub search "documentary"
 > under your account. **Never** paste them into issues, chats, public repos,
 > or anywhere that gets logged.
 
-`panhub` does not auto-fetch credentials — you copy two cookies from a browser
-where PanHub is already logged in:
+### Recommended: paste one cookie line (simplest)
+
+`panhub init` defaults to this path — you only need **one line** of
+`document.cookie`, no need to split fields yourself:
 
 1. Open https://panhub.shenzjd.com and **finish login** (first time: scan the
    public-account QR on the page and follow it).
-2. Press `F12` → `Application` tab → `Cookies` → `https://panhub.shenzjd.com`
-3. Copy these two values:
-   - **`wxauth-token`** (format: `openid.timestamp.hmac_sig`)
-   - **`cf_clearance`** (Cloudflare's "passed bot challenge" proof)
-4. Also copy your browser's **`User-Agent`** string (DevTools → `Console` →
-   type `navigator.userAgent`).
+2. Press `F12` → **Console** tab
+3. Type `document.cookie` and press Enter
+4. Copy the **entire output line** (looks like
+   `wxauth-token=...; cf_clearance=...; other=...`)
+5. Run `panhub init` and paste it when prompted (input is hidden)
 
-### Initialize
+The CLI parses out the `wxauth-token` + `cf_clearance` it needs and
+**silently ignores every other cookie**.
 
 ```bash
 panhub init
-# Interactive: paste the three values; writes ~/.panhub/credentials.json (mode 600)
+# → prompt "paste cookie string:"
+# → paste → Enter → writes ~/.panhub/credentials.json (mode 600)
+# → panhub auth-check to verify
+```
+
+### Scripted / agent usage (non-interactive)
+
+```bash
+# Option 1: cookie file
+echo "wxauth-token=...; cf_clearance=..." > /tmp/panhub.cookie
+panhub init --cookie-file /tmp/panhub.cookie --no-prompt
+rm /tmp/panhub.cookie
+
+# Option 2: environment variable (cron-friendly)
+export PANHUB_COOKIE='wxauth-token=...; cf_clearance=...'
+panhub init --no-prompt
+```
+
+### Advanced: enter fields separately (only if the default UA doesn't fit you)
+
+If your `cf_clearance` came from a browser whose UA differs from the default
+Chrome 152 / macOS one:
+
+```bash
+panhub init --advanced
+# enter wxauth-token / cf_clearance / user-agent one by one
 ```
 
 Or create `~/.panhub/credentials.json` manually:
@@ -70,6 +97,12 @@ Or create `~/.panhub/credentials.json` manually:
 ```
 
 Then `chmod 600 ~/.panhub/credentials.json`.
+
+> **Why is the UA fixed by default?** Cloudflare binds `cf_clearance` to the
+> browser fingerprint it was issued for (UA + IP + TLS). **Rotating random
+> UAs only triggers the bot defense** — the UA must match the browser that
+> obtained that `cf_clearance`. The default covers the common Chrome/macOS
+> case; override only when it doesn't match yours.
 
 ### Credential lifetime
 

@@ -1,7 +1,7 @@
 """Credentials management for PanHub CLI.
 
-Credentials are two Cloudflare/PanHub session cookies + a matching User-Agent
-string, copied from a browser where the user has already logged in to
+Credentials are two Cloudflare/PanHub session cookies + an optional User-Agent
+override, copied from a browser where the user has already logged in to
 https://panhub.shenzjd.com.
 
 Storage location: ~/.panhub/credentials.json
@@ -9,12 +9,21 @@ File mode: 0600 (owner read/write only) — checked on every load.
 
 The CLI never logs credential values. The `safe_summary()` helper returns a
 masked view suitable for `panhub auth-check` output.
+
+Design note on User-Agent:
+  The `cf_clearance` cookie is bound to a specific UA + IP + TLS fingerprint.
+  Mixing UAs (e.g. picking one at random) WILL trigger Cloudflare's bot
+  defense. So by default we use a single, fixed UA that matches the most
+  common case (Chrome 152 on macOS) and the `user_agent` field in
+  credentials.json is an OPTIONAL override for users who fetched their
+  cf_clearance from a different browser.
 """
 
 from __future__ import annotations
 
 import json
 import os
+import re
 import stat
 from dataclasses import dataclass
 from pathlib import Path
@@ -33,7 +42,7 @@ class CredentialsError(Exception):
 
 @dataclass(frozen=True)
 class Credentials:
-    """The three values needed to call PanHub's protected endpoints.
+    """The values needed to call PanHub's protected endpoints.
 
     Attributes:
         wxauth_token: Value of the `wxauth-token` cookie. Format:
@@ -41,9 +50,10 @@ class Credentials:
             follow state.
         cf_clearance: Value of the `cf_clearance` cookie. Cloudflare's
             "passed bot challenge" proof. Valid for ~30 days.
-        user_agent: Browser User-Agent string. PanHub/Cloudflare use it as
-            part of the fingerprint; using a UA that matches a current
-            desktop browser reduces oddities.
+        user_agent: Browser User-Agent string. Defaults to
+            `DEFAULT_USER_AGENT` (Chrome 152 on macOS). Override via
+            credentials.json's `user_agent` field if your cf_clearance was
+            fetched from a different browser.
     """
 
     wxauth_token: str
@@ -78,6 +88,43 @@ def _mask(value: str, *, keep: int = 6) -> str:
     if len(value) <= keep:
         return "***"
     return value[:keep] + "***"
+
+
+# Pattern: `name=value` where name is cookie-safe (no ; = space)
+_COOKIE_PAIR_RE = re.compile(r"([^=\s]+)=([^;]*)")
+
+
+def parse_cookie_string(cookie_str: str) -> dict[str, str]:
+    """Parse a raw `Cookie` header / `document.cookie` string into a dict.
+
+    Tolerates:
+      - leading/trailing whitespace
+      - arbitrary order
+      - extra cookies (anything not `wxauth-token` / `cf_clearance` is ignored)
+      - empty segments (e.g. trailing `;`)
+
+    Raises CredentialsError if either of the two required cookies is missing.
+    """
+    if not cookie_str or not cookie_str.strip():
+        raise CredentialsError("cookie string is empty")
+
+    pairs: dict[str, str] = {}
+    for match in _COOKIE_PAIR_RE.finditer(cookie_str):
+        name = match.group(1).strip()
+        value = match.group(2).strip()
+        if name and value:
+            pairs[name] = value
+
+    missing = [k for k in ("wxauth-token", "cf_clearance") if k not in pairs]
+    if missing:
+        raise CredentialsError(
+            f"cookie string is missing required cookie(s): {', '.join(missing)}. "
+            f"Found: {', '.join(sorted(pairs)) or '(none)'}."
+        )
+    return {
+        "wxauth-token": pairs["wxauth-token"],
+        "cf_clearance": pairs["cf_clearance"],
+    }
 
 
 def ensure_dir() -> Path:
