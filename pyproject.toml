@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [
-    { name = "sh0rk", email = "sh0rk@users.noreply.github.com" },
+    { name = "sh0rk", email = "hpsh0rk@users.noreply.github.com" },
 ]
 keywords = [
     "panhub",
@@ -52,9 +52,9 @@ dev = [
 panhub = "panhub.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/sh0rk/panhub-cli"
-Issues = "https://github.com/sh0rk/panhub-cli/issues"
-Source = "https://github.com/sh0rk/panhub-cli"
+Homepage = "https://github.com/hpsh0rk/panhub-cli"
+Issues = "https://github.com/hpsh0rk/panhub-cli/issues"
+Source = "https://github.com/hpsh0rk/panhub-cli"
 
 [tool.setuptools.packages.find]
 where = ["src"]
