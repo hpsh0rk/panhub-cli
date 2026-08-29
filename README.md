@@ -5,6 +5,7 @@
 > A command-line interface for [PanHub](https://github.com/wu529778790/panhub.shenzjd.com) — aggregate netdisk search, agent-friendly JSON output, no node/browser required.
 
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](.python-version)
+[![PyPI](https://img.shields.io/pypi/v/panhub-cli.svg)](https://pypi.org/project/panhub-cli/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Zero deps](https://img.shields.io/badge/dependencies-zero-green.svg)]()
 
@@ -12,7 +13,7 @@
 
 [PanHub](https://panhub.shenzjd.com) 是一个网盘资源聚合搜索引擎（夸克 / 阿里云盘 / 百度 / 115 / 迅雷 / Telegram 频道等 18+ 源）。`panhub-cli` 是它的命令行封装：
 
-- **纯 Python stdlib**，零外部依赖，`python3 panhub.py` 就能跑
+- **`pip install panhub-cli` 一行装好**（PyPI 官方包，Python 3.10+，零运行时依赖）
 - **JSON 输出**到 stdout，agent / 脚本可直接消费
 - **支持搜索、健康检查、热搜、榜单**等命令
 - **优雅解决 Cloudflare "bot forbidden"**：复用浏览器 cookie 即可
@@ -103,6 +104,19 @@ panhub init --advanced
 
 `panhub auth-check` 命令会探测凭据有效性，过期时清晰报错。
 
+## 快速开始（30 秒）
+
+```bash
+# 1. 装
+pip install panhub-cli
+
+# 2. 粘 cookie 一次性配置（从 DevTools Console 跑 document.cookie，复制整行）
+panhub init
+
+# 3. 搜
+panhub search "三体" --limit 5
+```
+
 ## 用法
 
 ```bash
@@ -116,6 +130,12 @@ panhub health
 
 # 鉴权检查（探测 wxauth-token + cf_clearance 是否仍有效）
 panhub auth-check
+
+# 凭据初始化（首次使用或刷新 cookie）
+panhub init                                  # 粘一行 document.cookie
+panhub init --advanced                       # 分开填三个字段
+panhub init --cookie-file /tmp/cookie.txt    # 脚本无交互模式
+PANHUB_COOKIE='...' panhub init --no-prompt  # 环境变量
 
 # 热搜 / 榜单（如果线上站提供）
 panhub hot

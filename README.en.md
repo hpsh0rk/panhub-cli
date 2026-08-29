@@ -3,18 +3,19 @@
 > A command-line interface for [PanHub](https://github.com/wu529778790/panhub.shenzjd.com) — aggregate netdisk search, agent-friendly JSON output, no node/browser required.
 
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](.python-version)
+[![PyPI](https://img.shields.io/pypi/v/panhub-cli.svg)](https://pypi.org/project/panhub-cli/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Zero deps](https://img.shields.io/badge/dependencies-zero-green.svg)]()
 
 ## What it is
 
-[PanHub](https://panhub.shenzjd.com) aggregates search across 18+ netdisk sources
-(Quark, Aliyundrive, Baidu, 115, Xunlei, Telegram channels, etc.). `panhub-cli`
-is its command-line wrapper:
+[PanHub](https://panhub.shenzjd.com) is a netdisk-aggregator search engine
+(Quark / Aliyundrive / Baidu / 115 / Xunlei / Telegram channels, 18+ sources).
+`panhub-cli` is a thin command-line wrapper:
 
-- **Pure Python stdlib**, zero external dependencies, runs as `python3 panhub.py`
-- **JSON output** to stdout, ready for agent/script consumption
-- **`search` / `health` / `hot` / `trending` / `auth-check`** subcommands
+- **`pip install panhub-cli` and you're done** (official PyPI package, Python 3.10+, zero runtime dependencies)
+- **JSON to stdout** — designed for AI agents and shell scripts
+- Supports `search`, `health`, `auth-check`, `init`
 - **Works around Cloudflare "bot forbidden"** by reusing browser session cookies
 
 ## Install
@@ -119,14 +120,40 @@ Then `chmod 600 ~/.panhub/credentials.json`.
 
 Run `panhub auth-check` to detect expired credentials.
 
+## Quickstart (30 seconds)
+
+```bash
+# 1. install
+pip install panhub-cli
+
+# 2. one-time credential setup (paste `document.cookie` from DevTools Console)
+panhub init
+
+# 3. search
+panhub search "三体" --limit 5
+```
+
 ## Usage
 
 ```bash
-panhub search "三体"                                  # default JSON to stdout
-panhub search "三体" --source baidu,quark            # filter by source
-panhub search "三体" --limit 20                      # cap results
-panhub health                                         # public endpoint, no creds
-panhub auth-check                                     # probe credential validity
+# Search (JSON to stdout by default)
+panhub search "三体"                          # basic
+panhub search "三体" --source baidu,quark     # filter by source
+panhub search "三体" --limit 20               # cap results
+
+# Public health check (no credentials needed)
+panhub health
+
+# Probe whether stored credentials are still valid
+panhub auth-check
+
+# Credential setup (one-time, or to refresh expired cookies)
+panhub init                                  # paste one cookie line (default)
+panhub init --advanced                       # enter each field separately
+panhub init --cookie-file /tmp/cookie.txt    # scripted, non-interactive
+PANHUB_COOKIE='...' panhub init --no-prompt  # from env var
+
+# Hot search / trending (if upstream provides them)
 panhub hot
 panhub trending
 ```
