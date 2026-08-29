@@ -20,22 +20,22 @@ is its command-line wrapper:
 ## Install
 
 ```bash
-git clone https://github.com/sh0rk/panhub-cli.git
-cd panhub-cli
+# Option A: pip (recommended)
+pip install panhub-cli
+panhub search "documentary"
 
-# Option A: symlink the entry script (recommended — zero deps, no pip, no sudo)
-# ~/.local/bin must be on your PATH (default on most macOS/Linux setups)
+# Option B: source + symlink (zero deps, no pip, no sudo)
+git clone https://github.com/hpsh0rk/panhub-cli.git
+cd panhub-cli
 mkdir -p ~/.local/bin
 ln -sf "$(pwd)/bin/panhub" ~/.local/bin/panhub
 panhub --version
-
-# Option B: pip install -e . (installs into current env)
-pip install -e .
-panhub search "documentary"
 ```
 
-> If pip fails on mirror SSL errors (common on corporate / CN networks),
-> use Option A — `bin/panhub` is self-contained and needs only Python 3.10+.
+> Behind CN mirrors, pip can hit SSL errors
+> (`pip config set global.index-url https://pypi.org/simple/` switches to the
+> official index), or just use Option B — `bin/panhub` is self-contained and
+> needs only Python 3.10+.
 
 **Requires**: Python 3.10+. No third-party dependencies.
 

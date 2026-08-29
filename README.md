@@ -20,22 +20,20 @@
 ## 安装
 
 ```bash
-git clone https://github.com/sh0rk/panhub-cli.git
-cd panhub-cli
+# 方式 A：pip 安装（推荐）
+pip install panhub-cli
+panhub search "纪录片 中东战争"
 
-# 方式 A：软链入口脚本（推荐，零依赖、无需 pip、无需 sudo）
-# ~/.local/bin 需在 PATH 中（macOS/Linux 默认多数已含）
+# 方式 B：源码软链（零依赖、无需 pip、无需 sudo）
+git clone https://github.com/hpsh0rk/panhub-cli.git
+cd panhub-cli
 mkdir -p ~/.local/bin
 ln -sf "$(pwd)/bin/panhub" ~/.local/bin/panhub
 panhub --version
-
-# 方式 B：pip install -e .（装到当前环境）
-pip install -e .
-panhub search "纪录片 中东战争"
 ```
 
-> 若 pip 安装因镜像 SSL 问题失败（企业网络 / 境内镜像常见），用方式 A 即可 —
-> `bin/panhub` 是自包含的，只依赖 Python 3.10+ 标准库。
+> 境内网络 pip 可能被镜像 SSL 问题卡住（`pip config set global.index-url https://pypi.org/simple/` 可换官方源），
+> 或直接用方式 B — `bin/panhub` 自包含，只需 Python 3.10+。
 
 **要求**：Python 3.10+，无第三方依赖。
 
