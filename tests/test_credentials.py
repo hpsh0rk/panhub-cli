@@ -128,16 +128,20 @@ def test_cookie_header_format() -> None:
 # ----- parse_cookie_string -----
 
 def test_parse_cookie_string_full_panhub_payload() -> None:
-    """The exact shape users will paste from document.cookie."""
+    """The exact shape users will paste from document.cookie.
+
+    NOTE: this uses obviously-fake placeholder values. Real cookies are
+    user-specific secrets and must NEVER be committed to the repo.
+    """
     raw = (
-        "wxauth-token=REDACTED"
-        "REDACTED; "
-        "cf_clearance=REDACTED"
-        "-1787933859-1.2.1.1-gF4.J6EcV7W0j6pHidtA2_jpfD1mxh5LsTuiDz9i6P7YK"
+        "wxauth-token=oFAKE_OPENID_PLACEHOLDER.0000000000."
+        "0000000000000000000000000000000000000000000000000000; "
+        "cf_clearance=FAKE_CF_CLEARANCE_PLACEHOLDER_FOR_TESTING_ONLY"
+        "-0000000-0.0.0.0-FAKE.FAKE.FAKE.FAKE.FAKE.FAKE.FAKE.FAKE"
     )
     parsed = parse_cookie_string(raw)
-    assert parsed["wxauth-token"].startswith("o86ECwVFUX2nN0yv")
-    assert parsed["cf_clearance"].startswith("W_ys_6vlizG0Kgn8")
+    assert parsed["wxauth-token"].startswith("oFAKE_OPENID")
+    assert parsed["cf_clearance"].startswith("FAKE_CF_CLEARANCE")
 
 
 def test_parse_cookie_string_ignores_other_cookies() -> None:
