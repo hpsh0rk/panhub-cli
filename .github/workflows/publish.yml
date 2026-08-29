@@ -1,0 +1,70 @@
+name: publish
+
+# Triggered when you push a tag matching v* (e.g. v0.1.0, v0.2.0).
+# Builds sdist + wheel and uploads to PyPI.
+#
+# Auth: uses PyPI Trusted Publishing (OIDC) by default. No token needed in
+# repo secrets. If you prefer a long-lived API token, set the secret
+# PYPI_API_TOKEN and the workflow will fall back to it.
+#
+# To set up trusted publishing:
+#   1. Go to https://pypi.org/manage/project/panhub-cli/settings/publishing/
+#   2. Click "Add a new pending publisher"
+#   3. Fill in:
+#        Owner: hpsh0rk
+#        Repository: panhub-cli
+#        Workflow filename: publish.yml
+#        GitHub reference: refs/tags/v*
+#   4. Save. The first trusted run claims the publisher.
+#
+# Usage:
+#   # Bump version in pyproject.toml, then:
+#   git tag -a v0.2.0 -m "v0.2.0: <one-line summary>"
+#   git push origin v0.2.0
+#   # → workflow builds and uploads → tag is also published as a GitHub Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build-and-publish:
+    name: build sdist + wheel, publish to PyPI
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write   # required for PyPI trusted publishing (OIDC)
+      contents: write   # needed to create a GitHub Release
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install build tooling
+        run: python -m pip install --upgrade build
+
+      - name: Build sdist and wheel
+        run: python -m build
+
+      - name: Publish to PyPI (trusted publishing — preferred)
+        if: ${{ env.PYPI_API_TOKEN == '' }}
+        uses: pypa/gh-action-pypi-publish@release/v1
+        # No `password:` → uses OIDC trusted publishing automatically.
+
+      - name: Publish to PyPI (token fallback)
+        if: ${{ env.PYPI_API_TOKEN != '' }}
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
